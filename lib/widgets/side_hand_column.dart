@@ -5,6 +5,8 @@ import 'piece_asset.dart';
 class SideHandColumn extends StatelessWidget {
   final String hands;
   final bool black;
+  final bool perspectiveBlack;
+  final bool handSide;
   final double pieceWidth;
   final double pieceHeight;
   final double boardSize;
@@ -13,6 +15,8 @@ class SideHandColumn extends StatelessWidget {
     super.key,
     required this.hands,
     required this.black,
+    required this.perspectiveBlack,
+    required this.handSide,
     required this.pieceWidth,
     required this.pieceHeight,
     required this.boardSize,
@@ -23,6 +27,7 @@ class SideHandColumn extends StatelessWidget {
     final parsed = parseHandsForSide(hands, black: black);
     const order = ['R', 'B', 'G', 'S', 'N', 'L', 'P'];
     final pieces = <String>[];
+
     for (final p in order) {
       final n = parsed[p] ?? 0;
       for (int i = 0; i < n; i++) {
@@ -37,7 +42,7 @@ class SideHandColumn extends StatelessWidget {
           ? const SizedBox.shrink()
           : FittedBox(
               fit: BoxFit.scaleDown,
-              alignment: black ? Alignment.bottomCenter : Alignment.topCenter,
+              alignment: handSide ? Alignment.bottomCenter : Alignment.topCenter,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -45,7 +50,11 @@ class SideHandColumn extends StatelessWidget {
                     SizedBox(
                       width: pieceWidth,
                       height: pieceHeight,
-                      child: PieceAsset(piece: p, isWhite: !black),
+                      child: PieceAsset(
+                        piece: p,
+                        isWhite: !black,
+                        perspectiveBlack: perspectiveBlack,
+                      ),
                     ),
                 ],
               ),

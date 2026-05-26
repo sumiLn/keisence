@@ -10,6 +10,7 @@ class ShogiPositionView extends StatelessWidget {
   final String moveUsi;
   final bool animate;
   final bool overTime;
+  final bool perspectiveBlack;
   final VoidCallback? onFinalMove;
   final VoidCallback? onReady;
 
@@ -20,6 +21,7 @@ class ShogiPositionView extends StatelessWidget {
     required this.moveUsi,
     this.animate = true,
     this.overTime = false,
+    this.perspectiveBlack = true,
     this.onFinalMove,
     this.onReady,
   });
@@ -28,6 +30,7 @@ class ShogiPositionView extends StatelessWidget {
     super.key,
     required this.sfen,
     required this.moveUsi,
+    this.perspectiveBlack = true,
   })  : beforeSfen = '',
         animate = false,
         overTime = false,
@@ -37,6 +40,7 @@ class ShogiPositionView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hands = parseSfen(sfen).hands;
+
     return LayoutBuilder(builder: (context, constraints) {
       final maxW = constraints.maxWidth;
       final maxH = constraints.maxHeight;
@@ -54,11 +58,20 @@ class ShogiPositionView extends StatelessWidget {
                 afterSfen: sfen,
                 moveUsi: moveUsi,
                 animate: true,
+                perspectiveBlack: perspectiveBlack,
                 onFinalMove: onFinalMove,
                 onReady: onReady,
               ),
             )
-          : StaticBoardView(sfen: sfen, moveUsi: moveUsi);
+          : StaticBoardView(
+              sfen: sfen,
+              moveUsi: moveUsi,
+              perspectiveBlack: perspectiveBlack,
+            );
+
+      // 常に右側が手番側、左側が相手側。
+      final leftIsBlack = !perspectiveBlack;
+      final rightIsBlack = perspectiveBlack;
 
       return Center(
         child: SizedBox(
@@ -70,7 +83,9 @@ class ShogiPositionView extends StatelessWidget {
             children: [
               SideHandColumn(
                 hands: hands,
-                black: false,
+                black: leftIsBlack,
+                perspectiveBlack: perspectiveBlack,
+                handSide: false,
                 pieceWidth: pieceWidth,
                 pieceHeight: pieceHeight,
                 boardSize: boardSize,
@@ -80,7 +95,9 @@ class ShogiPositionView extends StatelessWidget {
               SizedBox(width: sideGap),
               SideHandColumn(
                 hands: hands,
-                black: true,
+                black: rightIsBlack,
+                perspectiveBlack: perspectiveBlack,
+                handSide: true,
                 pieceWidth: pieceWidth,
                 pieceHeight: pieceHeight,
                 boardSize: boardSize,

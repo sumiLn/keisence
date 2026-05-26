@@ -1,18 +1,12 @@
 import 'dart:math';
-
 import 'package:flutter/material.dart';
-
-import '../utils/eval.dart';
+import '../utils/constants.dart';
 
 class LifePieces extends StatelessWidget {
   final int lives;
   final int previousLives;
 
-  const LifePieces({
-    super.key,
-    required this.lives,
-    required this.previousLives,
-  });
+  const LifePieces({super.key, required this.lives, required this.previousLives});
 
   static const List<String> lifeOrder = [
     'O',
@@ -48,13 +42,8 @@ class LifePieces extends StatelessWidget {
           final wasAlive = i < max(0, previousLives);
           final justLost = wasAlive && !alive;
           final justHealed = !wasAlive && alive;
-
           return AnimatedScale(
-            scale: justLost
-                ? 0.2
-                : justHealed
-                    ? 1.25
-                    : 1.0,
+            scale: justLost ? 0.2 : justHealed ? 1.25 : 1.0,
             duration: const Duration(milliseconds: 260),
             curve: Curves.easeOutBack,
             child: AnimatedOpacity(
@@ -63,10 +52,7 @@ class LifePieces extends StatelessWidget {
               child: SizedBox(
                 width: 64,
                 height: 76,
-                child: Image.asset(
-                  'assets/pieces/${lifeOrder[i]}.png',
-                  fit: BoxFit.contain,
-                ),
+                child: Image.asset('assets/pieces/${lifeOrder[i]}.png', fit: BoxFit.contain),
               ),
             ),
           );

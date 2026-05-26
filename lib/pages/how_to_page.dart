@@ -55,12 +55,16 @@ class _HowToPageState extends State<HowToPage> {
   Future<void> submitPractice() async {
     if (question == null || !boardReady) return;
     await Sound.play(se, 'se_piece.mp3', volume: 1.0);
-    final correct = evalToPercent(question!.evalCp);
+    final displayEval = displayEvalForTurn(
+      blackEvalCp: question!.evalCp,
+      sideToMoveAfter: question!.sideToMoveAfter,
+    );
+    final correct = evalToPercent(displayEval).clamp(0.0, 100.0);
     final predicted = percentToEval(guessPercent);
     final diff = (guessPercent - correct).abs();
     setState(() {
       correctPercent = correct;
-      resultText = '予測 ${formatEval(predicted)} / 正解 ${formatEval(question!.evalCp)} / 誤差 ${diff.toStringAsFixed(1)}%';
+      resultText = '予測 ${formatEval(predicted)} / 正解 ${formatEval(displayEval)} / 誤差 ${diff.toStringAsFixed(1)}%';
     });
   }
 
@@ -95,6 +99,7 @@ class _HowToPageState extends State<HowToPage> {
                   beforeSfen: question!.beforeSfen,
                   sfen: question!.sfen,
                   moveUsi: question!.moveUsi,
+                  perspectiveBlack: perspectiveBlackForTurn(question!.sideToMoveAfter),
                   onFinalMove: () => Sound.play(se, 'se_piece.mp3', volume: 0.85),
                   onReady: () => setState(() => boardReady = true),
                 ),

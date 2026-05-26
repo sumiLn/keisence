@@ -134,7 +134,11 @@ class _ResultPageState extends State<ResultPage> {
                                 child: Center(
                                   child: AspectRatio(
                                     aspectRatio: 1,
-                                    child: ShogiPositionView.staticView(sfen: r.question.sfen, moveUsi: r.question.moveUsi),
+                                    child: ShogiPositionView.staticView(
+                                      sfen: r.question.sfen,
+                                      moveUsi: r.question.moveUsi,
+                                      perspectiveBlack: perspectiveBlackForTurn(r.question.sideToMoveAfter),
+                                    ),
                                   ),
                                 ),
                               ),
