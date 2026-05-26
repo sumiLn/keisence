@@ -1,24 +1,22 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
-
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../models/play_record.dart';
 import '../models/question_data.dart';
 import '../services/sound.dart';
 import '../services/sound_settings.dart';
-import '../utils/eval.dart';
-import '../widgets/captured_pieces_panel.dart';
+import '../utils/constants.dart';
+import '../utils/eval_utils.dart';
 import '../widgets/game_header.dart';
 import '../widgets/guess_bar.dart';
 import '../widgets/life_pieces.dart';
 import '../widgets/result_flash.dart';
-import '../widgets/shogi_board.dart';
+import '../widgets/shogi_position_view.dart';
 import '../widgets/timer_view.dart';
 import 'result_page.dart';
 
@@ -46,9 +44,10 @@ class _GamePageState extends State<GamePage> {
   int lives = maxLives;
   int previousLives = maxLives;
   int questionCount = 0;
+  int bestScore = 0;
+
   int lastDamage = 0;
   int lastHeal = 0;
-  int bestScore = 0;
   int lastPredictedEval = 0;
   int lastCorrectEval = 0;
   double lastDiffPercent = 0;
@@ -82,20 +81,46 @@ class _GamePageState extends State<GamePage> {
   Future<void> loadGame() async {
     final prefs = await SharedPreferences.getInstance();
     bestScore = prefs.getInt('bestScore') ?? 0;
+    final recentIds = prefs.getStringList('recentQuestionIds') ?? <String>[];
+    final recentSet = recentIds.toSet();
 
-    final jsonString =
-        await rootBundle.loadString('assets/data/positions.json');
+    final jsonString = await rootBundle.loadString('assets/data/positions.json');
     final List<dynamic> data = json.decode(jsonString);
 
-    questions = data.map((e) => QuestionData.fromJson(e)).toList()..shuffle();
+    final seenSfen = <String>{};
+    final uniqueQuestions = <QuestionData>[];
+
+    for (final e in data) {
+      final q = QuestionData.fromJson(e);
+      if (q.sfen.isEmpty) continue;
+      if (seenSfen.add(q.sfen)) {
+        uniqueQuestions.add(q);
+      }
+    }
+
+    final filtered = uniqueQuestions.where((q) => !recentSet.contains(q.id)).toList();
+    questions = (filtered.length >= 30 ? filtered : uniqueQuestions)..shuffle();
+
+    debugPrint('[Keisense] loaded=${data.length}, unique=${uniqueQuestions.length}, playable=${questions.length}');
     nextQuestion();
+  }
+
+  Future<void> saveRecentQuestion(String id) async {
+    if (id.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    final recent = prefs.getStringList('recentQuestionIds') ?? <String>[];
+    recent.remove(id);
+    recent.add(id);
+    final trimmed = recent.length > 100 ? recent.sublist(recent.length - 100) : recent;
+    await prefs.setStringList('recentQuestionIds', trimmed);
   }
 
   void nextQuestion() {
     stopTimers();
-
+    final next = questions[questionCount % questions.length];
+    unawaited(saveRecentQuestion(next.id));
     setState(() {
-      currentQuestion = questions[questionCount % questions.length];
+      currentQuestion = next;
       guessPercent = 50;
       dragLift = 0;
       correctPercent = null;
@@ -121,22 +146,18 @@ class _GamePageState extends State<GamePage> {
 
   void startAnswerTimer() {
     if (timerRunning || answered) return;
-
     setState(() {
       timerRunning = true;
       overTime = false;
       remainingTenths = answerLimitSeconds * 10;
       overtimeSeconds = 0;
     });
-
     countdownTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
       if (!mounted || answered) {
         timer.cancel();
         return;
       }
-
       setState(() => remainingTenths -= 1);
-
       if (remainingTenths <= 0) {
         timer.cancel();
         startOvertimePenalty();
@@ -146,32 +167,21 @@ class _GamePageState extends State<GamePage> {
 
   void startOvertimePenalty() {
     if (answered || !mounted) return;
-
     setState(() {
       overTime = true;
       overtimeSeconds = 0;
     });
-
     overtimeTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       if (!mounted || answered) {
         timer.cancel();
         return;
       }
-
-      if (lives <= 0) {
-        timer.cancel();
-        await showGameOver();
-        return;
-      }
-
       setState(() {
         previousLives = lives;
         lives -= 1;
         overtimeSeconds += 1;
       });
-
       await Sound.play(se, 'se_damage.mp3', volume: 0.65);
-
       if (lives <= 0) {
         timer.cancel();
         await showGameOver();
@@ -181,43 +191,37 @@ class _GamePageState extends State<GamePage> {
 
   Future<void> submitAnswer() async {
     if (currentQuestion == null || answered || !boardReady) return;
-
     stopTimers();
     await Sound.play(se, 'se_piece.mp3', volume: 1.0);
 
+    final perspectiveBlack = currentQuestion!.sideToMoveAfter != 'white';
+    final displayEval = displayEvalForTurn(
+      blackEvalCp: currentQuestion!.evalCp,
+      sideToMoveAfter: currentQuestion!.sideToMoveAfter,
+    );
     final predictedEval = percentToEval(guessPercent);
-    final correct = evalToPercent(currentQuestion!.evalCp).clamp(0.0, 100.0);
+    final correct = evalToPercent(displayEval).clamp(0.0, 100.0);
     final diffPercent = (guessPercent - correct).abs();
-
     final perfect = diffPercent < 0.05;
     final critical = !perfect && diffPercent <= 2.0;
-
     int damage = damageFromDiff(diffPercent);
     int heal = 0;
-
     if (perfect) {
       damage = 0;
       heal = 3;
     }
+    final gain = perfect ? 150 : critical ? 120 : max(0, 100 - (diffPercent * 2).round());
 
-    final gain = perfect
-        ? 150
-        : critical
-            ? 120
-            : max(0, 100 - (diffPercent * 2).round());
-
-    records.add(
-      PlayRecord(
-        question: currentQuestion!,
-        predictedEval: predictedEval,
-        correctEval: currentQuestion!.evalCp,
-        diffPercent: diffPercent,
-        damage: damage,
-        heal: heal,
-        perfect: perfect,
-        critical: critical,
-      ),
-    );
+    records.add(PlayRecord(
+      question: currentQuestion!,
+      predictedEval: predictedEval,
+      correctEval: displayEval,
+      diffPercent: diffPercent,
+      damage: damage,
+      heal: heal,
+      perfect: perfect,
+      critical: critical,
+    ));
 
     setState(() {
       answered = true;
@@ -225,25 +229,18 @@ class _GamePageState extends State<GamePage> {
       lastDamage = damage;
       lastHeal = heal;
       lastPredictedEval = predictedEval;
-      lastCorrectEval = currentQuestion!.evalCp;
+      lastCorrectEval = displayEval;
       lastDiffPercent = diffPercent;
       lastPerfect = perfect;
       lastCritical = critical;
       previousLives = lives;
-
-      if (heal > 0) {
-        lives = min(maxLives, lives + heal);
-      } else {
-        lives -= damage;
-      }
-
+      lives = heal > 0 ? min(maxLives, lives + heal) : lives - damage;
       score += gain;
       questionCount++;
       showResultOverlay = true;
     });
 
     await Future.delayed(const Duration(milliseconds: 230));
-
     if (perfect) {
       await Sound.play(se, 'se_heal.mp3', volume: 0.75);
     } else if (critical) {
@@ -251,11 +248,8 @@ class _GamePageState extends State<GamePage> {
     } else if (damage > 0) {
       await Sound.play(se, 'se_damage.mp3', volume: 0.65);
     }
-
     await Future.delayed(const Duration(milliseconds: 1050));
-
     if (!mounted) return;
-
     if (lives <= 0) {
       await showGameOver();
     } else {
@@ -265,29 +259,18 @@ class _GamePageState extends State<GamePage> {
 
   Future<void> showGameOver() async {
     stopTimers();
-
     if (score > bestScore) {
       bestScore = score;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('bestScore', bestScore);
     }
-
     await bgm.stop();
     await Sound.play(se, 'se_lose.mp3', volume: 0.85);
     await Future.delayed(const Duration(milliseconds: 650));
-
     if (!mounted) return;
-
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(
-        builder: (_) => ResultPage(
-          score: score,
-          bestScore: bestScore,
-          questionCount: questionCount,
-          records: records,
-        ),
-      ),
+      MaterialPageRoute(builder: (_) => ResultPage(score: score, bestScore: bestScore, questionCount: questionCount, records: records)),
     );
   }
 
@@ -301,16 +284,9 @@ class _GamePageState extends State<GamePage> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading || currentQuestion == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
+    if (loading || currentQuestion == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
-    final turnText =
-        currentQuestion!.sideToMoveAfter == 'black' ? '次の手番：先手' : '次の手番：後手';
-
-    final turnColor = currentQuestion!.sideToMoveAfter == 'black'
-        ? const Color(0xFF1F6FD1)
-        : const Color(0xFFD73737);
+    final perspectiveBlack = currentQuestion!.sideToMoveAfter != 'white';
 
     return Scaffold(
       backgroundColor: const Color(0xFF090806),
@@ -320,11 +296,7 @@ class _GamePageState extends State<GamePage> {
             Positioned.fill(
               child: Container(
                 decoration: const BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment.topCenter,
-                    radius: 1.25,
-                    colors: [Color(0xFF22170E), Color(0xFF0A0907)],
-                  ),
+                  gradient: RadialGradient(center: Alignment.topCenter, radius: 1.25, colors: [Color(0xFF22170E), Color(0xFF0A0907)]),
                 ),
               ),
             ),
@@ -334,62 +306,31 @@ class _GamePageState extends State<GamePage> {
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final isMobile = constraints.maxWidth < 700;
-
                     if (isMobile) {
                       return Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         child: Column(
                           children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    turnText,
-                                    style: GoogleFonts.notoSerifJp(
-                                      color: turnColor,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                ),
-                                TimerView(
-                                  remainingTenths: remainingTenths,
-                                  overTime: overTime,
-                                  overtimeSeconds: overtimeSeconds,
-                                ),
-                              ],
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TimerView(
+                                remainingTenths: remainingTenths,
+                                overTime: overTime,
+                                overtimeSeconds: overtimeSeconds,
+                              ),
                             ),
                             const SizedBox(height: 4),
-                            LifePieces(
-                                lives: lives, previousLives: previousLives),
+                            LifePieces(lives: lives, previousLives: previousLives),
                           ],
                         ),
                       );
                     }
-
                     return Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                       child: Row(
                         children: [
-                          SizedBox(
-                            width: 220,
-                            child: Text(
-                              turnText,
-                              style: GoogleFonts.notoSerifJp(
-                                color: turnColor,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Center(
-                              child: LifePieces(
-                                  lives: lives, previousLives: previousLives),
-                            ),
-                          ),
+                          const SizedBox(width: 220),
+                          Expanded(child: Center(child: LifePieces(lives: lives, previousLives: previousLives))),
                           SizedBox(
                             width: 220,
                             child: Align(
@@ -407,87 +348,21 @@ class _GamePageState extends State<GamePage> {
                   },
                 ),
                 Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final wide = constraints.maxWidth > 900;
-
-                      return Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: wide ? 28 : 10,
-                          vertical: 6,
-                        ),
-                        child: wide
-                            ? Row(
-                                children: [
-                                  SizedBox(
-                                    width: 300,
-                                    child: CapturedPiecesPanel(
-                                      title: '後手 持ち駒',
-                                      hands: currentQuestion!.hands,
-                                      black: false,
-                                      accent: const Color(0xFFD73737),
-                                      sfen: currentQuestion!.sfen,
-                                      side: CapturedSide.left,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Center(
-                                      child: ShogiBoardGlow(
-                                        overTime: overTime,
-                                        child: ShogiBoardView(
-                                          key: ValueKey(currentQuestion!.id),
-                                          beforeSfen:
-                                              currentQuestion!.beforeSfen,
-                                          afterSfen: currentQuestion!.sfen,
-                                          moveUsi: currentQuestion!.moveUsi,
-                                          onFinalMove: () => Sound.play(
-                                              se, 'se_piece.mp3',
-                                              volume: 0.85),
-                                          onReady: () {
-                                            setState(() => boardReady = true);
-                                            startAnswerTimer();
-                                          },
-                                          animate: true,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  SizedBox(
-                                    width: 300,
-                                    child: CapturedPiecesPanel(
-                                      title: '先手 持ち駒',
-                                      hands: currentQuestion!.hands,
-                                      black: true,
-                                      accent: const Color(0xFF1F6FD1),
-                                      sfen: currentQuestion!.sfen,
-                                      side: CapturedSide.right,
-                                    ),
-                                  ),
-                                ],
-                              )
-                            : Center(
-                                child: ShogiBoardGlow(
-                                  overTime: overTime,
-                                  child: ShogiBoardView(
-                                    key: ValueKey(currentQuestion!.id),
-                                    beforeSfen: currentQuestion!.beforeSfen,
-                                    afterSfen: currentQuestion!.sfen,
-                                    moveUsi: currentQuestion!.moveUsi,
-                                    onFinalMove: () => Sound.play(
-                                        se, 'se_piece.mp3',
-                                        volume: 0.85),
-                                    onReady: () {
-                                      setState(() => boardReady = true);
-                                      startAnswerTimer();
-                                    },
-                                    animate: true,
-                                  ),
-                                ),
-                              ),
-                      );
-                    },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+                    child: ShogiPositionView(
+                      key: ValueKey(currentQuestion!.id),
+                      beforeSfen: currentQuestion!.beforeSfen,
+                      sfen: currentQuestion!.sfen,
+                      moveUsi: currentQuestion!.moveUsi,
+                      overTime: overTime,
+                      perspectiveBlack: perspectiveBlack,
+                      onFinalMove: () => Sound.play(se, 'se_piece.mp3', volume: 0.85),
+                      onReady: () {
+                        setState(() => boardReady = true);
+                        startAnswerTimer();
+                      },
+                    ),
                   ),
                 ),
                 GuessBar(

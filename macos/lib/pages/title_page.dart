@@ -12,7 +12,6 @@ import 'settings_page.dart';
 
 class TitlePage extends StatefulWidget {
   final bool skipTapToStart;
-
   const TitlePage({super.key, this.skipTapToStart = false});
 
   @override
@@ -39,10 +38,8 @@ class _TitlePageState extends State<TitlePage> {
   Future<void> init() async {
     await SoundSettings.load();
     final prefs = await SharedPreferences.getInstance();
-
     if (!mounted) return;
     setState(() => bestScore = prefs.getInt('bestScore') ?? 0);
-
     if (widget.skipTapToStart) {
       await Sound.loop(bgm, 'home_bgm.mp3', volume: 0.34);
     }
@@ -50,42 +47,29 @@ class _TitlePageState extends State<TitlePage> {
 
   Future<void> startSoundAndMenu() async {
     if (soundStarted) return;
-
     setState(() => soundStarted = true);
     await Sound.loop(bgm, 'home_bgm.mp3', volume: 0.34);
-
     if (!mounted) return;
     setState(() => menuVisible = true);
   }
 
   Future<void> startGame() async {
     if (fading) return;
-
     setState(() => fading = true);
     await Sound.play(se, 'se_start.mp3', volume: 0.85);
     await Future.delayed(const Duration(milliseconds: 500));
     await bgm.stop();
-
     if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const GamePage()),
-    );
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const GamePage()));
   }
 
   Future<void> openSettings() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => SettingsPage(homeBgm: bgm)),
-    );
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage(homeBgm: bgm)));
     await Sound.applyBgmSetting(bgm, 'home_bgm.mp3', volume: 0.34);
   }
 
   void openHowTo() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const HowToPage()),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const HowToPage()));
   }
 
   @override
@@ -115,11 +99,7 @@ class _TitlePageState extends State<TitlePage> {
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [
-                        Color(0xFFEBCB8A),
-                        Color(0xFFD09C4D),
-                        Color(0xFFB7772B),
-                      ],
+                      colors: [Color(0xFFEBCB8A), Color(0xFFD09C4D), Color(0xFFB7772B)],
                     ),
                   ),
                 ),
@@ -132,8 +112,7 @@ class _TitlePageState extends State<TitlePage> {
               ),
               Center(
                 child: SingleChildScrollView(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -180,28 +159,22 @@ class _TitlePageState extends State<TitlePage> {
                               if (isMobile)
                                 Column(
                                   children: [
-                                    ShogiPieceButton(
-                                        text: '対局開始', onTap: startGame),
+                                    ShogiPieceButton(text: '対局開始', onTap: startGame),
                                     const SizedBox(height: 12),
-                                    SmallPieceButton(
-                                        text: '遊び方', onTap: openHowTo),
+                                    SmallPieceButton(text: '遊び方', onTap: openHowTo),
                                     const SizedBox(height: 8),
-                                    SmallPieceButton(
-                                        text: '設定', onTap: openSettings),
+                                    SmallPieceButton(text: '設定', onTap: openSettings),
                                   ],
                                 )
                               else
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    SmallPieceButton(
-                                        text: '設定', onTap: openSettings),
+                                    SmallPieceButton(text: '設定', onTap: openSettings),
                                     const SizedBox(width: 18),
-                                    ShogiPieceButton(
-                                        text: '対局開始', onTap: startGame),
+                                    ShogiPieceButton(text: '対局開始', onTap: startGame),
                                     const SizedBox(width: 18),
-                                    SmallPieceButton(
-                                        text: '遊び方', onTap: openHowTo),
+                                    SmallPieceButton(text: '遊び方', onTap: openHowTo),
                                   ],
                                 ),
                             ],
@@ -215,10 +188,7 @@ class _TitlePageState extends State<TitlePage> {
               AnimatedOpacity(
                 opacity: fading ? 1 : 0,
                 duration: const Duration(milliseconds: 500),
-                child: IgnorePointer(
-                  ignoring: !fading,
-                  child: Container(color: Colors.black),
-                ),
+                child: IgnorePointer(ignoring: !fading, child: Container(color: Colors.black)),
               ),
             ],
           ),

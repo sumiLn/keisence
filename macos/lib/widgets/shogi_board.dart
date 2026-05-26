@@ -57,6 +57,7 @@ class ShogiBoardView extends StatefulWidget {
   final VoidCallback? onFinalMove;
   final VoidCallback? onReady;
   final bool animate;
+  final bool perspectiveBlack;
 
   const ShogiBoardView({
     super.key,
@@ -66,6 +67,7 @@ class ShogiBoardView extends StatefulWidget {
     this.onFinalMove,
     this.onReady,
     this.animate = true,
+    this.perspectiveBlack = true,
   });
 
   @override
@@ -138,6 +140,7 @@ class _ShogiBoardViewState extends State<ShogiBoardView> {
       highlightIndex: showAfter ? moveToIndex(widget.moveUsi) : null,
       impact: impact,
       animatePieces: true,
+      perspectiveBlack: widget.perspectiveBlack,
     );
   }
 }
@@ -145,7 +148,13 @@ class _ShogiBoardViewState extends State<ShogiBoardView> {
 class StaticBoardView extends StatelessWidget {
   final String sfen;
   final String moveUsi;
-  const StaticBoardView({super.key, required this.sfen, required this.moveUsi});
+  final bool perspectiveBlack;
+  const StaticBoardView({
+    super.key,
+    required this.sfen,
+    required this.moveUsi,
+    this.perspectiveBlack = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -156,6 +165,7 @@ class StaticBoardView extends StatelessWidget {
         highlightIndex: moveToIndex(moveUsi),
         impact: false,
         animatePieces: false,
+        perspectiveBlack: perspectiveBlack,
       ),
     );
   }
@@ -167,6 +177,7 @@ class BoardCore extends StatelessWidget {
   final int? highlightIndex;
   final bool impact;
   final bool animatePieces;
+  final bool perspectiveBlack;
 
   const BoardCore({
     super.key,
@@ -175,6 +186,7 @@ class BoardCore extends StatelessWidget {
     required this.highlightIndex,
     required this.impact,
     required this.animatePieces,
+    this.perspectiveBlack = true,
   });
 
   bool isWhitePiece(String p) {
@@ -224,6 +236,7 @@ class BoardCore extends StatelessWidget {
                     highlighted: index == highlightIndex,
                     impact: impact,
                     animatePieces: animatePieces,
+                    perspectiveBlack: perspectiveBlack,
                   ),
               ],
             ),
@@ -247,6 +260,7 @@ class _PositionedPiece extends StatelessWidget {
   final bool highlighted;
   final bool impact;
   final bool animatePieces;
+  final bool perspectiveBlack;
 
   const _PositionedPiece({
     required this.index,
@@ -261,12 +275,15 @@ class _PositionedPiece extends StatelessWidget {
     required this.highlighted,
     required this.impact,
     required this.animatePieces,
+    this.perspectiveBlack = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    final row = index ~/ 9;
-    final col = index % 9;
+    final rawRow = index ~/ 9;
+    final rawCol = index % 9;
+    final row = perspectiveBlack ? rawRow : 8 - rawRow;
+    final col = perspectiveBlack ? rawCol : 8 - rawCol;
     final centerX = gridLeft + col * cellSize + cellSize / 2;
     final centerY = gridTop + row * cellSize + cellSize / 2;
     final show = visible && piece.isNotEmpty;
@@ -296,7 +313,7 @@ class _PositionedPiece extends StatelessWidget {
             child: AnimatedOpacity(
               opacity: show ? 1 : 0,
               duration: animatePieces ? const Duration(milliseconds: 140) : Duration.zero,
-              child: PieceAsset(piece: piece, isWhite: isWhite),
+              child: PieceAsset(piece: piece, isWhite: isWhite, perspectiveBlack: perspectiveBlack),
             ),
           ),
         ],
