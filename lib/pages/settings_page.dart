@@ -62,7 +62,7 @@ class _SettingsPageState extends State<SettingsPage> {
             const Text('MUSIC：DOVA-SYNDROME、効果音ラボ', style: TextStyle(fontSize: 18)),
             const Text('評価値解析：水匠5 / やねうら王 NNUE V9.00Git（30秒読込）', style: TextStyle(fontSize: 18)),
             const Text('他：ChatGPT', style: TextStyle(fontSize: 18)),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             const Text('バージョン1.0.0-1', style: TextStyle(fontSize: 18)),
           ],
         ),

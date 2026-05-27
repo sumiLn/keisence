@@ -7,19 +7,28 @@ import 'piece_asset.dart';
 class ShogiBoardGlow extends StatefulWidget {
   final bool overTime;
   final Widget child;
-  const ShogiBoardGlow({super.key, required this.overTime, required this.child});
+
+  const ShogiBoardGlow({
+    super.key,
+    required this.overTime,
+    required this.child,
+  });
 
   @override
   State<ShogiBoardGlow> createState() => _ShogiBoardGlowState();
 }
 
-class _ShogiBoardGlowState extends State<ShogiBoardGlow> with SingleTickerProviderStateMixin {
+class _ShogiBoardGlowState extends State<ShogiBoardGlow>
+    with SingleTickerProviderStateMixin {
   late final AnimationController controller;
 
   @override
   void initState() {
     super.initState();
-    controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 650))..repeat(reverse: true);
+    controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 650),
+    )..repeat(reverse: true);
   }
 
   @override
@@ -39,7 +48,11 @@ class _ShogiBoardGlowState extends State<ShogiBoardGlow> with SingleTickerProvid
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             boxShadow: [
-              BoxShadow(color: color.withOpacity(power), blurRadius: widget.overTime ? 38 : 28, spreadRadius: widget.overTime ? 10 : 7),
+              BoxShadow(
+                color: color.withOpacity(power),
+                blurRadius: widget.overTime ? 38 : 28,
+                spreadRadius: widget.overTime ? 10 : 7,
+              ),
             ],
           ),
           child: child,
@@ -89,7 +102,10 @@ class _ShogiBoardViewState extends State<ShogiBoardView> {
   @override
   void didUpdateWidget(covariant ShogiBoardView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.afterSfen != widget.afterSfen) startAnimation();
+    if (oldWidget.afterSfen != widget.afterSfen ||
+        oldWidget.perspectiveBlack != widget.perspectiveBlack) {
+      startAnimation();
+    }
   }
 
   void startAnimation() {
@@ -102,9 +118,11 @@ class _ShogiBoardViewState extends State<ShogiBoardView> {
       });
       return;
     }
+
     revealedCount = 0;
     showAfter = false;
     impact = false;
+
     timer = Timer.periodic(const Duration(milliseconds: 7), (t) {
       if (!mounted) return;
       setState(() => revealedCount += 6);
@@ -112,7 +130,10 @@ class _ShogiBoardViewState extends State<ShogiBoardView> {
         t.cancel();
         Future.delayed(const Duration(milliseconds: 380), () {
           if (!mounted) return;
-          setState(() { showAfter = true; impact = true; });
+          setState(() {
+            showAfter = true;
+            impact = true;
+          });
           widget.onFinalMove?.call();
           Future.delayed(const Duration(milliseconds: 260), () {
             if (!mounted) return;
@@ -149,6 +170,7 @@ class StaticBoardView extends StatelessWidget {
   final String sfen;
   final String moveUsi;
   final bool perspectiveBlack;
+
   const StaticBoardView({
     super.key,
     required this.sfen,
@@ -199,6 +221,7 @@ class BoardCore extends StatelessWidget {
   Widget build(BuildContext context) {
     final parsed = parseSfen(sfen);
     final cells = parsed.board;
+
     return LayoutBuilder(builder: (context, constraints) {
       final boardSize = min(constraints.maxWidth, constraints.maxHeight);
       final cellSize = boardSize / 10.0;
@@ -215,7 +238,10 @@ class BoardCore extends StatelessWidget {
           height: boardSize,
           child: Container(
             decoration: BoxDecoration(
-              image: const DecorationImage(image: AssetImage('assets/images/board.png'), fit: BoxFit.contain),
+              image: const DecorationImage(
+                image: AssetImage('assets/images/board.png'),
+                fit: BoxFit.contain,
+              ),
               borderRadius: BorderRadius.circular(12),
               boxShadow: const [BoxShadow(blurRadius: 20, color: Colors.black87)],
             ),
@@ -275,21 +301,26 @@ class _PositionedPiece extends StatelessWidget {
     required this.highlighted,
     required this.impact,
     required this.animatePieces,
-    this.perspectiveBlack = true,
+    required this.perspectiveBlack,
   });
 
   @override
   Widget build(BuildContext context) {
-    final rawRow = index ~/ 9;
-    final rawCol = index % 9;
-    final row = perspectiveBlack ? rawRow : 8 - rawRow;
-    final col = perspectiveBlack ? rawCol : 8 - rawCol;
+    final originalRow = index ~/ 9;
+    final originalCol = index % 9;
+    final row = perspectiveBlack ? originalRow : 8 - originalRow;
+    final col = perspectiveBlack ? originalCol : 8 - originalCol;
+
     final centerX = gridLeft + col * cellSize + cellSize / 2;
     final centerY = gridTop + row * cellSize + cellSize / 2;
+    final left = centerX - pieceWidth / 2;
+    final top = centerY - pieceHeight / 2;
     final show = visible && piece.isNotEmpty;
+    final scale = highlighted && impact ? 1.62 : 1.0;
+
     return Positioned(
-      left: centerX - pieceWidth / 2,
-      top: centerY - pieceHeight / 2,
+      left: left,
+      top: top,
       width: pieceWidth,
       height: pieceHeight,
       child: Stack(
@@ -307,13 +338,17 @@ class _PositionedPiece extends StatelessWidget {
               ),
             ),
           AnimatedScale(
-            scale: show ? (highlighted && impact ? 1.62 : 1.0) : 0.6,
+            scale: show ? scale : 0.6,
             duration: animatePieces ? const Duration(milliseconds: 220) : Duration.zero,
             curve: Curves.easeOutBack,
             child: AnimatedOpacity(
               opacity: show ? 1 : 0,
               duration: animatePieces ? const Duration(milliseconds: 140) : Duration.zero,
-              child: PieceAsset(piece: piece, isWhite: isWhite, perspectiveBlack: perspectiveBlack),
+              child: PieceAsset(
+                piece: piece,
+                isWhite: isWhite,
+                perspectiveBlack: perspectiveBlack,
+              ),
             ),
           ),
         ],

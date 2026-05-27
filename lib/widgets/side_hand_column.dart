@@ -6,7 +6,7 @@ class SideHandColumn extends StatelessWidget {
   final String hands;
   final bool black;
   final bool perspectiveBlack;
-  final bool handSide;
+  final bool isRightSide;
   final double pieceWidth;
   final double pieceHeight;
   final double boardSize;
@@ -16,7 +16,7 @@ class SideHandColumn extends StatelessWidget {
     required this.hands,
     required this.black,
     required this.perspectiveBlack,
-    required this.handSide,
+    required this.isRightSide,
     required this.pieceWidth,
     required this.pieceHeight,
     required this.boardSize,
@@ -36,13 +36,13 @@ class SideHandColumn extends StatelessWidget {
     }
 
     return SizedBox(
-      width: pieceWidth * 1.25,
+      width: pieceWidth * 1.18,
       height: boardSize,
       child: pieces.isEmpty
           ? const SizedBox.shrink()
           : FittedBox(
               fit: BoxFit.scaleDown,
-              alignment: handSide ? Alignment.bottomCenter : Alignment.topCenter,
+              alignment: isRightSide ? Alignment.bottomCenter : Alignment.topCenter,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [

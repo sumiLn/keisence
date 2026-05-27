@@ -93,14 +93,11 @@ class _GamePageState extends State<GamePage> {
     for (final e in data) {
       final q = QuestionData.fromJson(e);
       if (q.sfen.isEmpty) continue;
-      if (seenSfen.add(q.sfen)) {
-        uniqueQuestions.add(q);
-      }
+      if (seenSfen.add(q.sfen)) uniqueQuestions.add(q);
     }
 
     final filtered = uniqueQuestions.where((q) => !recentSet.contains(q.id)).toList();
     questions = (filtered.length >= 30 ? filtered : uniqueQuestions)..shuffle();
-
     debugPrint('[Keisense] loaded=${data.length}, unique=${uniqueQuestions.length}, playable=${questions.length}');
     nextQuestion();
   }
@@ -194,7 +191,6 @@ class _GamePageState extends State<GamePage> {
     stopTimers();
     await Sound.play(se, 'se_piece.mp3', volume: 1.0);
 
-    final perspectiveBlack = perspectiveBlackForTurn(currentQuestion!.sideToMoveAfter);
     final displayEval = displayEvalForTurn(
       blackEvalCp: currentQuestion!.evalCp,
       sideToMoveAfter: currentQuestion!.sideToMoveAfter,

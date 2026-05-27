@@ -44,11 +44,11 @@ class ShogiPositionView extends StatelessWidget {
     return LayoutBuilder(builder: (context, constraints) {
       final maxW = constraints.maxWidth;
       final maxH = constraints.maxHeight;
-      final boardSize = min(maxH, maxW / 1.32);
+      final boardSize = min(maxH, maxW / 1.30);
       final cellSize = boardSize / 10.0;
       final pieceWidth = cellSize * 1.18;
       final pieceHeight = cellSize * 1.32;
-      final sideGap = max(4.0, cellSize * 0.08);
+      final sideGap = max(2.0, cellSize * 0.05);
 
       final board = animate
           ? ShogiBoardGlow(
@@ -75,7 +75,7 @@ class ShogiPositionView extends StatelessWidget {
 
       return Center(
         child: SizedBox(
-          width: boardSize + pieceWidth * 2.5 + sideGap * 2,
+          width: boardSize + pieceWidth * 2.36 + sideGap * 2,
           height: boardSize,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -85,7 +85,7 @@ class ShogiPositionView extends StatelessWidget {
                 hands: hands,
                 black: leftIsBlack,
                 perspectiveBlack: perspectiveBlack,
-                handSide: false,
+                isRightSide: false,
                 pieceWidth: pieceWidth,
                 pieceHeight: pieceHeight,
                 boardSize: boardSize,
@@ -97,7 +97,7 @@ class ShogiPositionView extends StatelessWidget {
                 hands: hands,
                 black: rightIsBlack,
                 perspectiveBlack: perspectiveBlack,
-                handSide: true,
+                isRightSide: true,
                 pieceWidth: pieceWidth,
                 pieceHeight: pieceHeight,
                 boardSize: boardSize,

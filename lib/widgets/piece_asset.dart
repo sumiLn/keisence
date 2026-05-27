@@ -4,8 +4,6 @@ import 'package:flutter/material.dart';
 class PieceAsset extends StatelessWidget {
   final String piece;
   final bool isWhite;
-
-  /// true: 先手側から見る / false: 後手側から見る
   final bool perspectiveBlack;
 
   const PieceAsset({
@@ -27,11 +25,10 @@ class PieceAsset extends StatelessWidget {
   Widget build(BuildContext context) {
     if (piece.isEmpty) return const SizedBox.shrink();
 
-    // 盤を手番側視点にするため、手前側の駒を正立させる。
-    final rotate180 = isWhite == perspectiveBlack;
+    final angle = (isWhite == perspectiveBlack) ? pi : 0.0;
 
     return Transform.rotate(
-      angle: rotate180 ? pi : 0,
+      angle: angle,
       child: Image.asset(
         'assets/pieces/${assetName()}',
         fit: BoxFit.contain,
